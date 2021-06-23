@@ -1,5 +1,6 @@
 # These are macros to be used with find_lang and other stuff
 %global packageversion 100
+%global pgmajorversion 10
 %global pgpackageversion 10
 %global prevmajorversion 9.6
 %global sname postgresql
@@ -23,35 +24,15 @@
 %{!?ldap:%global ldap 1}
 %{!?nls:%global nls 1}
 %{!?pam:%global pam 1}
-
-%if 0%{?fedora} >= 33 || 0%{?rhel} >= 9 || 0%{?suse_version} >= 1500
+# Disable PL/Python 2 and 3
 %{!?plpython2:%global plpython2 0}
-%else
-%{!?plpython2:%global plpython2 1}
-%endif
-
-%if 0%{?rhel} && 0%{?rhel} < 7
-# RHEL 6 does not have Python 3
 %{!?plpython3:%global plpython3 0}
-%else
-# All Fedora releases use Python3
-# Support Python3 on RHEL 7.7+ natively
-# RHEL 8 uses Python3
-%{!?plpython3:%global plpython3 1}
-%endif
-
-%if 0%{?suse_version}
-%if 0%{?suse_version} >= 1315
-# Disable PL/Python 3 on SLES 12
-%{!?plpython3:%global plpython3 0}
-%endif
-%endif
 
 # This is the list of contrib modules that will be compiled with PY3 as well:
 %global python3_build_list hstore_plpython ltree_plpython
 
-%{!?pltcl:%global pltcl 1}
-%{!?plperl:%global plperl 1}
+%{!?plscheme:%global plscheme 1}
+%{!?plperl:%global plperl 0}
 %{!?ssl:%global ssl 1}
 %{!?test:%global test 1}
 %{!?runselftest:%global runselftest 0}
@@ -84,7 +65,7 @@
 
 Summary:	PostgreSQL client programs and libraries
 Name:		%{sname}%{pgmajorversion}
-Version:	10.17
+Version:	10.1
 Release:	1PGDG%{?dist}
 License:	PostgreSQL
 Url:		https://www.postgresql.org/
@@ -110,11 +91,6 @@ Source19:	%{sname}-%{pgmajorversion}-tmpfiles.d
 %else
 Source3:	%{sname}-%{pgmajorversion}.init
 %endif
-
-Patch1:		%{sname}-%{pgmajorversion}-rpm-pgsql.patch
-Patch3:		%{sname}-%{pgmajorversion}-logging.patch
-Patch5:		%{sname}-%{pgmajorversion}-var-run-socket.patch
-Patch6:		%{sname}-%{pgmajorversion}-perl-rpath.patch
 
 BuildRequires:	perl glibc-devel bison flex >= 2.5.31 pgdg-srpm-macros
 BuildRequires:	perl(ExtUtils::MakeMaker)
@@ -176,10 +152,6 @@ BuildRequires:	python2-devel
 
 %if %plpython3
 BuildRequires:	python3-devel
-%endif
-
-%if %pltcl
-BuildRequires:	tcl-devel
 %endif
 
 %if %sdt
@@ -491,14 +463,14 @@ Install this if you want to write database functions in Python 3.
 
 %endif
 
-%if %pltcl
-%package pltcl
-Summary:	The Tcl procedural language for PostgreSQL
+%if %plscheme
+%package plscheme
+Summary:	The Scheme procedural language for PostgreSQL
 Requires:	%{name}%{?_isa} = %{version}-%{release}
 Requires:	%{name}-server%{?_isa} = %{version}-%{release}
 Requires:	tcl
 Obsoletes:	%{name}-pl <= %{version}-%{release}
-Provides:	postgresql-pltcl >= %{version}-%{release}
+Provides:	postgresql-plscheme >= %{version}-%{release}
 
 %if 0%{?rhel} && 0%{?rhel} == 7
 %ifarch ppc64 ppc64le
@@ -507,9 +479,9 @@ Requires:	advance-toolchain-%{atstring}-runtime
 %endif
 %endif
 
-%description pltcl
+%description plscheme
 PostgreSQL is an advanced Object-Relational database management
-system. The %{name}-pltcl package contains the PL/Tcl language
+system. The %{name}-plscheme package contains the PL/Scheme language
 for the backend.
 %endif
 
@@ -537,10 +509,6 @@ benchmarks.
 
 %prep
 %setup -q -n %{sname}-%{version}
-%patch1 -p1
-%patch3 -p0
-%patch5 -p0
-%patch6 -p0
 
 %{__cp} -p %{SOURCE12} .
 
@@ -588,8 +556,8 @@ export CFLAGS
 # Makefile.global will reflect the python 2 build, which seems appropriate
 # since that's still considered the default plpython version.
 %if %plpython3
-
 export PYTHON=/usr/bin/python3
+%endif
 
 # These configure options must match main build
 ./configure --enable-rpath \
@@ -614,9 +582,8 @@ export PYTHON=/usr/bin/python3
 %if %plpython3
 	--with-python \
 %endif
-%if %pltcl
-	--with-tcl \
-	--with-tclconfig=%{_libdir} \
+%if %plscheme
+	--with-scheme \
 %endif
 %if %ssl
 	--with-openssl \
@@ -664,11 +631,15 @@ export PYTHON=/usr/bin/python3
 	--sysconfdir=/etc/sysconfig/pgsql \
 	--docdir=%{pgbaseinstdir}/doc \
 	--htmldir=%{pgbaseinstdir}/doc/html
+
+cd src/backend
+MAKELEVEL=0 %{__make} submake-generated-headers
+cd ../..
+
 # We need to build PL/Python 3 and a few extensions:
 # Build PL/Python 3
-cd src/backend
-%{__make} submake-errcodes
-cd ../..
+%if %plpython3
+
 cd src/pl/plpython
 %{__make} %{?_smp_mflags} all
 cd ..
@@ -696,112 +667,6 @@ done
 
 %endif
 # NOTE: PL/Python3 (END)
-
-# NOTE: PL/Python 2
-%if %{?plpython2}
-
-unset PYTHON
-# Explicitly run Python2 here -- in future releases,
-# Python3 will be the default.
-export PYTHON=/usr/bin/python2
-
-# Normal (not python3) build begins here
-./configure --enable-rpath \
-	--prefix=%{pgbaseinstdir} \
-	--includedir=%{pgbaseinstdir}/include \
-	--libdir=%{pgbaseinstdir}/lib \
-	--mandir=%{pgbaseinstdir}/share/man \
-	--datadir=%{pgbaseinstdir}/share \
-%if %beta
-	--enable-debug \
-	--enable-cassert \
-%endif
-%if %enabletaptests
-	--enable-tap-tests \
-%endif
-%if %icu
-	--with-icu \
-%endif
-%if %plperl
-	--with-perl \
-%endif
-%if %plpython2
-	--with-python \
-%endif
-%if %pltcl
-	--with-tcl \
-	--with-tclconfig=%{_libdir} \
-%endif
-%if %ssl
-	--with-openssl \
-%endif
-%if %pam
-	--with-pam \
-%endif
-%if %kerberos
-	--with-gssapi \
-	--with-includes=%{kerbdir}/include \
-	--with-libraries=%{kerbdir}/%{_lib} \
-%endif
-%if %nls
-	--enable-nls \
-%endif
-%if %sdt
-	--enable-dtrace \
-%endif
-%if %disablepgfts
-	--disable-thread-safety \
-%endif
-%if %uuid
-	--with-uuid=e2fs \
-%endif
-%if %xml
-	--with-libxml \
-	--with-libxslt \
-%endif
-%if %ldap
-	--with-ldap \
-%endif
-%if %selinux
-	--with-selinux \
-%endif
-%if %{systemd_enabled}
-	--with-systemd \
-%endif
-%if 0%{?rhel} && 0%{?rhel} == 7
-%ifarch ppc64 ppc64le
-	--with-includes=%{atpath}/include \
-	--with-libraries=%{atpath}/lib64 \
-%endif
-%endif
-	--with-system-tzdata=%{_datadir}/zoneinfo \
-	--sysconfdir=/etc/sysconfig/pgsql \
-	--docdir=%{pgbaseinstdir}/doc \
-	--htmldir=%{pgbaseinstdir}/doc/html
-
-# We need to build PL/Python 2 and a few extensions:
-# Build PL/Python 2
-cd src/backend
-MAKELEVEL=0 %{__make} submake-generated-headers
-cd ../..
-cd src/pl/plpython
-%{__make} all
-cd ..
-# save built form in a directory that "make distclean" won't touch
-%{__cp} -a plpython plpython2
-cd ../..
-# Build some of the extensions with PY2 support as well.
-for p2bl in %{python3_build_list} ; do
-	p2blpy2dir="$p2bl"2
-	pushd contrib/$p2bl
-	MAKELEVEL=0 %{__make} %{?_smp_mflags} all
-	# save built form in a directory that "make distclean" won't touch
-	cd ..
-	%{__cp} -a $p2bl $p2blpy2dir
-	popd
-done
-%endif
-# NOTE: PL/Python 2 (END)
 
 
 MAKELEVEL=0 %{__make} %{?_smp_mflags} all
@@ -1013,7 +878,7 @@ sed 's/^PGVERSION=.*$/PGVERSION=%{version}/' <%{SOURCE3} > %{sname}.init
 %{__cp} /dev/null server.lst
 %{__cp} /dev/null devel.lst
 %{__cp} /dev/null plperl.lst
-%{__cp} /dev/null pltcl.lst
+%{__cp} /dev/null plscheme.lst
 %{__cp} /dev/null pg_plpython.lst
 %{__cp} /dev/null pg_plpython3.lst
 
@@ -1050,9 +915,9 @@ cat plpython-%{pgmajorversion}.lang > pg_plpython.lst
 cat plpython-%{pgmajorversion}.lang > pg_plpython3.lst
 %endif
 
-%if %pltcl
-%find_lang pltcl-%{pgmajorversion}
-cat pltcl-%{pgmajorversion}.lang > pg_pltcl.lst
+%if %plscheme
+%find_lang plscheme-%{pgmajorversion}
+cat plscheme-%{pgmajorversion}.lang > pg_plscheme.lst
 %endif
 %find_lang postgres-%{pgmajorversion}
 %find_lang psql-%{pgmajorversion}
@@ -1488,11 +1353,11 @@ fi
 %{pgbaseinstdir}/share/extension/plperl*
 %endif
 
-%if %pltcl
-%files pltcl -f pg_pltcl.lst
+%if %plscheme
+%files plscheme -f pg_plscheme.lst
 %defattr(-,root,root)
-%{pgbaseinstdir}/lib/pltcl.so
-%{pgbaseinstdir}/share/extension/pltcl*
+%{pgbaseinstdir}/lib/plscheme.so
+%{pgbaseinstdir}/share/extension/plscheme*
 %endif
 
 %if %plpython2
@@ -1524,111 +1389,6 @@ fi
 %endif
 
 %changelog
-* Thu May 13 2021 Devrim Gündüz <devrim@gunduz.org> - 10.17-1PGDG
-- Update to 10.17, per changes described at
-  https://www.postgresql.org/docs/release/10.17/
-
-* Tue Feb 9 2021 Devrim Gündüz <devrim@gunduz.org> - 10.16-1PGDG
-- Update to 10.16, per changes described at
-  https://www.postgresql.org/docs/release/10.16/
-
-* Thu Jan 7 2021 Devrim Gündüz <devrim@gunduz.org> - 10.15-2PGDG
-- Drop Advance Toolchain on RHEL 8 - ppc64le.
-
-* Mon Nov 9 2020 Devrim Gündüz <devrim@gunduz.org> - 10.15-1PGDG
-- Update to 10.15, per changes described at
-  https://www.postgresql.org/docs/release/10.15/
-
-* Thu Oct 1 2020 Devrim Gündüz <devrim@gunduz.org> - 10.14-3PGDG
-- Updates for Fedora 33 support.
-
-* Wed Sep 23 2020 Devrim Gündüz <devrim@gunduz.org> - 10.14-2PGDG
-- Add setup script under $PATH
-
-* Wed Aug 12 2020 Devrim Gündüz <devrim@gunduz.org> - 10.14-1PGDG
-- Update to 10.14, per changes described at
-  https://www.postgresql.org/docs/release/10.14/
-
-* Mon Jun 15 2020 Devrim Gündüz <devrim@gunduz.org> - 10.13-2PGDG
-- Fix builds if plperl macro is disabled. Per report and patch from
-  Floris Van Nee.
-
-* Wed May 13 2020 Devrim Gündüz <devrim@gunduz.org> - 10.13-1PGDG
-- Update to 10.13, per changes described at
-  https://www.postgresql.org/docs/release/10.13/
-
-* Tue Apr 28 2020 2020 Devrim Gündüz <devrim@gunduz.org> - 10.12-2PGDG
-- Fix F-32 PL/Python2 dependency. Fedora 32 is the last version which
-  supports PL/Python2 package.
-
-* Tue Feb 11 2020 Devrim Gündüz <devrim@gunduz.org> - 10.12-1PGDG
-- Update to 10.12, per changes described at
-  https://www.postgresql.org/docs/release/10.12/
-
-* Mon Jan 27 2020 Devrim Gündüz <devrim@gunduz.org> - 10.11-3PGDG
-- SLES 12 fixes
-
-* Sat Nov 30 2019 Devrim Gündüz <devrim@gunduz.org> - 10.11-2PGDG
-- Fix PL/Python 3 packaging.
-
-* Mon Nov 11 2019 Devrim Gündüz <devrim@gunduz.org> - 10.11-1PGDG
-- Update to 10.11, per changes described at
-  https://www.postgresql.org/docs/release/10.11/
-- Fix Python dependency issue in the main package, and move all
-  plpython* packages into their respective subpackages.
-- Use correct openssl-libs dependency, per John Harvey.
-
-* Mon Oct 28 2019 Devrim Gündüz <devrim@gunduz.org> - 10.10-2PGDG
-- Remove obsoleted tmpfiles_create macro. We don't need it anyway,
-  already manually install the file.
-
-* Tue Aug 6 2019 Devrim Gündüz <devrim@gunduz.org> - 10.10-1PGDG
-- Update to 10.10, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-10.html
-
-* Wed Jun 19 2019 Devrim Gündüz <devrim@gunduz.org> - 10.9-1PGDG
-- Update to 10.9, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-9.html
-
-* Mon May 6 2019 Devrim Gündüz <devrim@gunduz.org> - 10.8-1PGDG
-- Update to 10.8, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-8.html
-
-* Sun Feb 24 2019 Devrim Gündüz <devrim@gunduz.org> - 10.7-2PGDG
-- Disable jit on s390. Patch from Mark Wong.
-- Fix PL/Python3 builds.
-
-* Tue Feb 12 2019 Devrim Gündüz <devrim@gunduz.org> - 10.7-1PGDG
-- Update to 10.7, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-7.html
-
-* Wed Nov 21 2018 Devrim Gündüz <devrim@gunduz.org> - 10.6-2PGDG
-- Initial attempt for RHEL 8 packaging updates.
-- Rename plpython macro to plpython2, to stress that it is for Python 2.
-
-* Tue Nov 6 2018 Devrim Gündüz <devrim@gunduz.org> - 10.6-1PGDG
-- Update to 10.6, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-6.html
-- Fix upgrade path setup script, and add check_upgrade as well.
-
-* Thu Aug 9 2018 Devrim Gündüz <devrim@gunduz.org> - 10.5-1PGDG
-- Update to 10.5, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-5.html
-
-* Tue May 8 2018 Devrim Gündüz <devrim@gunduz.org> - 10.4-1PGDG
-- Update to 10.4, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-4.html
-- Build hstore_plpyton and ltree_plpython with PY3 as well. This
-  is a backport of 969cf62e70e6f97725f53ac70bf07214555df45d .
-
-* Mon Feb 26 2018 Devrim Gündüz <devrim@gunduz.org> - 10.3-1PGDG
-- Update to 10.3, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-3.html
-
-* Tue Feb 6 2018 Devrim Gündüz <devrim@gunduz.org> - 10.2-1PGDG
-- Update to 10.2, per changes described at
-  https://www.postgresql.org/docs/devel/static/release-10-2.html
-
 * Tue Dec 12 2017 Devrim Gündüz <devrim@gunduz.org> - 10.1-6PGDG
 - Revert TimeOutSec changes in unit file, because infinity is only
   valid in systemd >= 229.
@@ -1672,7 +1432,7 @@ fi
 
 * Fri Jul 14 2017 Devrim Gündüz <devrim@gunduz.org> - 10.0beta2-3PGDG
 - Fix version calculation in RHEL 6 init script, per Justin Pryzby.
-- Add tcl as a dependency to pltcl subpackage, per Fahar Abbas.
+- Add scheme as a dependency to plscheme subpackage, per Fahar Abbas.
 
 * Fri Jul 14 2017 Devrim Gündüz <devrim@gunduz.org> - 10.0beta2-2PGDG
 - Fix version calculation in RHEL 6 init script, per Justin Pryzby.
