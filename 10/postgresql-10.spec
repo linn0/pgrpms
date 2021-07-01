@@ -680,6 +680,8 @@ sed "s|C=\`pwd\`;|C=%{pgbaseinstdir}/lib/tutorial;|" < src/tutorial/Makefile > s
 %{__make} %{?_smp_mflags} -C src/tutorial NO_PGXS=1 all
 %{__rm} -f src/tutorial/GNUmakefile
 
+# Building The Documentation
+%{__make} %{?_smp_mflags} -C doc all
 
 # run_testsuite WHERE
 # -------------------
@@ -1163,7 +1165,6 @@ fi
 %{pgbaseinstdir}/lib/pg_prewarm.so
 %{pgbaseinstdir}/lib/pg_stat_statements.so
 %{pgbaseinstdir}/lib/pg_trgm.so
-%{pgbaseinstdir}/lib/pg_visibility.so
 %{pgbaseinstdir}/lib/postgres_fdw.so
 %{pgbaseinstdir}/lib/refint.so
 %{pgbaseinstdir}/lib/seg.so
@@ -1221,7 +1222,6 @@ fi
 %{pgbaseinstdir}/share/extension/pg_prewarm*
 %{pgbaseinstdir}/share/extension/pg_stat_statements*
 %{pgbaseinstdir}/share/extension/pg_trgm*
-%{pgbaseinstdir}/share/extension/pg_visibility*
 %{pgbaseinstdir}/share/extension/pgcrypto*
 %{pgbaseinstdir}/share/extension/pgrowlocks*
 %{pgbaseinstdir}/share/extension/pgstattuple*
@@ -1260,6 +1260,7 @@ fi
 %{pgbaseinstdir}/lib/libpgtypes.so.*
 %{pgbaseinstdir}/lib/libecpg_compat.so.*
 %{pgbaseinstdir}/lib/libpqwalreceiver.so
+%{pgbaseinstdir}/lib/libpqstorage.so
 %config(noreplace) %attr (644,root,root) %{pgbaseinstdir}/share/%{sname}-%{pgmajorversion}-libs.conf
 
 %files server -f pg_server.lst
@@ -1327,6 +1328,7 @@ fi
 %{pgbaseinstdir}/share/information_schema.sql
 %{pgbaseinstdir}/share/snowball_create.sql
 %{pgbaseinstdir}/share/sql_features.txt
+%{pgbaseinstdir}/share/errcodes.txt
 
 %files devel -f pg_devel.lst
 %defattr(-,root,root)
@@ -1357,6 +1359,14 @@ fi
 %files plscheme -f pg_plscheme.lst
 %defattr(-,root,root)
 %{pgbaseinstdir}/lib/plscheme.so
+%{pgbaseinstdir}/lib/chibi/*
+%{pgbaseinstdir}/lib/scheme/*
+%{pgbaseinstdir}/lib/srfi/*
+%{pgbaseinstdir}/lib/.chibi.meta
+%{pgbaseinstdir}/lib/.scheme.meta
+%{pgbaseinstdir}/lib/.srfi.meta
+%{pgbaseinstdir}/lib/init-7.scm
+%{pgbaseinstdir}/lib/meta-7.scm
 %{pgbaseinstdir}/share/extension/plscheme*
 %endif
 
