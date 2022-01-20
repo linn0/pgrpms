@@ -11,7 +11,7 @@
 ARCH=`rpm --eval "%{_arch}"`
 DIR=`pwd`
 DIST=.f29
-SPECFILE="postgresql-10.spec"
+SPECFILE="postgresql-12.spec"
 
 # Now, include global Makefile
 include ../../../../global/Makefile.global

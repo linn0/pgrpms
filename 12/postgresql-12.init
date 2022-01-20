@@ -57,13 +57,13 @@
 #                             subsequent call of \`initdb\` binary (see man
 #                             initdb(1)).
 
-# Version 10 Devrim Gunduz <devrim@gunduz.org>
+# Version 12 Devrim Gunduz <devrim@gunduz.org>
 # Fix CVE-2017-12172
 
-# PGVERSION is the full package version, e.g., 10
+# PGVERSION is the full package version, e.g., 12
 # Note: the specfile inserts the correct value during package build
 PGVERSION=xxxx
-# PGMAJORVERSION is major version, e.g., 10 (this should match PG_VERSION)
+# PGMAJORVERSION is major version, e.g., 12 (this should match PG_VERSION)
 PGMAJORVERSION=`echo "$PGVERSION" | sed 's/^\([0-9]*\)\.[0-9]*$/\1/'`
 PGPREVMAJORVERSION=9.6
 
@@ -96,9 +96,9 @@ fi
 LOCALEPARAMETER=$2
 
 # Set defaults for configuration variables
-PGENGINE=/usr/pgsql-10/bin
-PGDATA=/var/lib/pgsql/10/data
-PGLOG=/var/lib/pgsql/10/pgstartup.log
+PGENGINE=/usr/pgsql-12/bin
+PGDATA=/var/lib/pgsql/12/data
+PGLOG=/var/lib/pgsql/12/pgstartup.log
 # Log file for pg_upgrade
 PGUPLOG=/var/lib/pgsql/$PGMAJORVERSION/pgupgrade.log
 
@@ -291,7 +291,7 @@ fi
 if [ ! -f "/etc/init.d/${OLD_INIT_SCRIPT}" ]
 then
 	echo "Could not find init script /etc/init.d/${OLD_INIT_SCRIPT}"
-	echo "Please install postgresql10-server RPM first."
+	echo "Please install postgresql12-server RPM first."
 	exit
 fi
 
@@ -306,7 +306,7 @@ NEWPGPORT=`sed -n 's/^PGPORT=//p' /etc/init.d/postgresql-$PGMAJORVERSION`
 if [ ! -x "$PGENGINE/pg_upgrade" ]
     then
 	echo
-	echo $"Please install the postgresql10-contrib RPM for pg_upgrade command."
+	echo $"Please install the postgresql12-contrib RPM for pg_upgrade command."
 	echo
         exit 5
 fi

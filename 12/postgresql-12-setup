@@ -2,15 +2,15 @@
 #
 # postgresql-setup	Initialization and upgrade operations for PostgreSQL
 
-# PGVERSION is the full package version, e.g., 10.0
+# PGVERSION is the full package version, e.g., 12.0
 # Note: the specfile inserts the correct value during package build
 PGVERSION=xxx
-# PGMAJORVERSION is major version, e.g., 10 (this should match PG_VERSION)
+# PGMAJORVERSION is major version, e.g., 12 (this should match PG_VERSION)
 PGMAJORVERSION=`echo "$PGVERSION" | sed 's/^\([0-9]*\.[0-9]*\).*$/\1/'`
 # PGENGINE is the directory containing the postmaster executable
 # Note: the specfile inserts the correct value during package build
 PGENGINE=xxxx
-# PREVMAJORVERSION is the previous major version, e.g., 10, for upgrades
+# PREVMAJORVERSION is the previous major version, e.g., 12, for upgrades
 PREVMAJORVERSION=xxx
 # PREVPGENGINE is the directory containing the previous postmaster executable
 PREVPGENGINE=/usr/pgsql-$PREVMAJORVERSION/bin

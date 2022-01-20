@@ -1,8 +1,8 @@
 # These are macros to be used with find_lang and other stuff
-%global packageversion 100
-%global pgmajorversion 10
-%global pgpackageversion 10
-%global prevmajorversion 9.6
+%global packageversion 120
+%global pgmajorversion 12
+%global pgpackageversion 12
+%global prevmajorversion 11
 %global sname postgresql
 %global	pgbaseinstdir	/usr/pgsql-%{pgmajorversion}
 
@@ -65,7 +65,7 @@
 
 Summary:	PostgreSQL client programs and libraries
 Name:		%{sname}%{pgmajorversion}
-Version:	10.1
+Version:	12.1
 Release:	1PGDG%{?dist}
 License:	PostgreSQL
 Url:		https://www.postgresql.org/
